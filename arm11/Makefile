@@ -26,7 +26,7 @@ INCLUDES	:=	include source
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard #-mtp=soft  -mthumb-interwork 
+ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=softfp -mtp=soft -mthumb-interwork 
 
 CFLAGS	:=	-g -Wall -Os -mword-relocations \
 			-fomit-frame-pointer -ffunction-sections \

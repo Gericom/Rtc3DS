@@ -53,10 +53,11 @@ static int readGyro(int offset)
 {
     u8 res;
     mcu_readRegSafe(0x45 + offset, &res, 1);
+    //mcu_readRegSafe(0x08, &res, 1);
     return res;
 }
 
-extern "C" int handleCommand1(u8 param)
+extern "C" int handleCommand1(u8 param, u32 stage)
 {
     if(param <= 2)
         return readCPad(param);
@@ -67,7 +68,13 @@ extern "C" int handleCommand1(u8 param)
     // }
 
     if(param == 0xFF)
-        return mcu_init();
+    {
+        int result = mcu_init();
+        if(result)
+            return result;
+        
+        return mcu_writeRegSafe(0x40, (const uint8_t[]){ 0x01 }, 1) ? 0x00 : 0xFE;
+    }
 
     if(param >= 3 && param <= 9)
         return readGyro(param - 3);

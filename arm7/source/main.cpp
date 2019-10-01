@@ -23,25 +23,25 @@ static bool updateGyro()
 {
 	if(!rtcom_executeUCode(3))
 		return false;
-	u16 gyro0 = rtcom_getData();
+	s16 gyro0 = rtcom_getData();
 	if(!rtcom_requestNext(4))
 		return false;
 	gyro0 |= rtcom_getData() << 8;
 	if(!rtcom_requestNext(5))
 		return false;
-	u16 gyro1 = rtcom_getData();
+	s16 gyro1 = rtcom_getData();
 	if(!rtcom_requestNext(6))
 		return false;
 	gyro1 |= rtcom_getData() << 8;
 	if(!rtcom_requestNext(7))
 		return false;
-	u16 gyro2 = rtcom_getData();
+	s16 gyro2 = rtcom_getData();
 	if(!rtcom_requestNext(8))
 		return false;
 	gyro2 |= rtcom_getData() << 8;
-	*(vu16*)0x02FFFE78 = gyro0;
-	*(vu16*)0x02FFFE7A = gyro1;
-	*(vu16*)0x02FFFE7C = gyro2;
+	*(vs16*)0x02FFFE78 = gyro0 >> 4;
+	*(vs16*)0x02FFFE7A = gyro1 >> 4;
+	*(vs16*)0x02FFFE7C = gyro2 >> 4;
 	return true;
 }
 
@@ -114,8 +114,11 @@ int main()
 		rtcom_requestAsync(1);
 		rtcom_waitStatus(RTCOM_STAT_DONE);
 		rtcom_uploadUCode(Rtc3DS_uc11, Rtc3DS_uc11_size);
-		rtcom_executeUCode(0xFF); //mcu init
-		*(u8*)0x02FFFE74 = rtcom_getData();
+		rtcom_requestKill();
+		if(rtcom_executeUCode(0xFF)) //mcu init
+			*(u8*)0x02FFFE74 = rtcom_getData();
+		else
+			*(u8*)0x02FFFE74 = 0xFF;
 		rtcom_requestKill();
 		rtcom_requestAsync(RTCOM_STAT_DONE);
 		rtcom_endComm();
