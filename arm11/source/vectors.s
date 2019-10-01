@@ -2,7 +2,9 @@
 .global _start
 .align	4
 .arm
-b handleCommand1
+push {r1-r12, lr}
+bl handleCommand1
+pop {r1-r12, pc}
 //.space 132
 //ldr r1,= 0x127384
 //ldrb r0, [r1, r0]

@@ -6,7 +6,6 @@
 
 static bool updateCPad()
 {
-	REG_IF = IRQ_NETWORK;
 	if(!rtcom_executeUCode(0))
 		return false;
 	u8 cpad0 = rtcom_getData();
@@ -20,12 +19,39 @@ static bool updateCPad()
 	return true;
 }
 
+static bool updateGyro()
+{
+	if(!rtcom_executeUCode(3))
+		return false;
+	u16 gyro0 = rtcom_getData();
+	if(!rtcom_requestNext(4))
+		return false;
+	gyro0 |= rtcom_getData() << 8;
+	if(!rtcom_requestNext(5))
+		return false;
+	u16 gyro1 = rtcom_getData();
+	if(!rtcom_requestNext(6))
+		return false;
+	gyro1 |= rtcom_getData() << 8;
+	if(!rtcom_requestNext(7))
+		return false;
+	u16 gyro2 = rtcom_getData();
+	if(!rtcom_requestNext(8))
+		return false;
+	gyro2 |= rtcom_getData() << 8;
+	*(vu16*)0x02FFFE78 = gyro0;
+	*(vu16*)0x02FFFE7A = gyro1;
+	*(vu16*)0x02FFFE7C = gyro2;
+	return true;
+}
+
 void VblankHandler(void)
 {
 	int savedIrq = enterCriticalSection();
 	{
 		rtcom_beginComm();
 		updateCPad();
+		updateGyro();
 		rtcom_requestKill();
 		rtcom_requestAsync(RTCOM_STAT_DONE);
 		rtcom_endComm();
@@ -88,6 +114,8 @@ int main()
 		rtcom_requestAsync(1);
 		rtcom_waitStatus(RTCOM_STAT_DONE);
 		rtcom_uploadUCode(Rtc3DS_uc11, Rtc3DS_uc11_size);
+		rtcom_executeUCode(0xFF); //mcu init
+		*(u8*)0x02FFFE74 = rtcom_getData();
 		rtcom_requestKill();
 		rtcom_requestAsync(RTCOM_STAT_DONE);
 		rtcom_endComm();

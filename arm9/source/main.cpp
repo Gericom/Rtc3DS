@@ -115,7 +115,8 @@ int main()
 		if (keysDown()&KEY_B)
 			printf("Button B\n");
 		
-		//printf("Errors: %d\n", *(vu32*)0x0CFFFE74);
+		//printf("Data: %x\n", *(vu8*)0x0CFFFE74);
+		printf("Data: %x\n", *(vu16*)0x0CFFFE78);
 	}
 
 	return 0;
