@@ -28,15 +28,20 @@ int main()
 	while(true)
 	{
 		glViewport(0,0,255,191);
-		u32 cpad = *(vu32*)0x0CFFFE70;
 		
-		vs16* gyro = (vs16*)0x0CFFFE78;
 
+		//u32 cpad = *(vu32*)0x0CFFFE70;
 		//u16 cpadX = cpad & 0xFFF;
 		//u16 cpadY = (cpad >> 12) & 0xFFF;
 		
-		u16 cpadX = (~gyro[0] & 0xFFF) ^ 0x800;
-		u16 cpadY = (gyro[1] & 0xFFF) ^ 0x800;
+		//vs16* gyro = (vs16*)0x0CFFFE78;
+		//u16 cpadX = (~gyro[0] & 0xFFF) ^ 0x800;
+		//u16 cpadY = (gyro[1] & 0xFFF) ^ 0x800;
+        
+        vu16* gyrodat = (vu16*)0x0CFFFE78;
+        
+        u16 cpadX = ((gyrodat[2] >> 4) & 0xFFF) ^ 0x800;
+		u16 cpadY = ((gyrodat[0] >> 4) & 0xFFF) ^ 0x800;
 
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
@@ -119,8 +124,8 @@ int main()
 		scanKeys();
 		if (keysDown()&KEY_B)
 			printf("Button B\n");
-		
-		printf("Data: %x\n", *(vu8*)0x0CFFFE74);
+        
+        printf("=[%02X]=\n\e[1A", *(vu8*)0x0CFFFE74);
 	}
 
 	return 0;

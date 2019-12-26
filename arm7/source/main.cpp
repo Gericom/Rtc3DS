@@ -39,9 +39,9 @@ static bool updateGyro()
 	if(!rtcom_requestNext(8))
 		return false;
 	gyro2 |= rtcom_getData() << 8;
-	*(vs16*)0x02FFFE78 = gyro0 >> 4;
-	*(vs16*)0x02FFFE7A = gyro1 >> 4;
-	*(vs16*)0x02FFFE7C = gyro2 >> 4;
+	*(vs16*)0x02FFFE78 = gyro0;
+	*(vs16*)0x02FFFE7A = gyro1;
+	*(vs16*)0x02FFFE7C = gyro2;
 	return true;
 }
 

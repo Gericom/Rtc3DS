@@ -4,6 +4,7 @@
 #include "scaling.h"
 #include "svc.h"
 #include "mcu.h"
+#include "gyro.h"
 
 // extern "C" bool handleCommand0(u8 param)
 // {
@@ -44,6 +45,16 @@
 //     return (u32)state & 0xFF;
 // }
 
+static inline void sleepnanos(uint64_t nanos)
+{
+    asm volatile("MOV r0, %Q0\n\t"
+                 "MOV r1, %R0\n\t"
+                 "SVC 0xA"
+                 :
+                 : "r"(nanos)
+                 : "r0", "r1");
+}
+
 static int readCPad(int offset)
 {
     return ((u8*)0x127384)[offset];
@@ -51,33 +62,101 @@ static int readCPad(int offset)
 
 static int readGyro(int offset)
 {
-    u8 res;
-    mcu_readRegSafe(0x45 + offset, &res, 1);
-    //mcu_readRegSafe(0x08, &res, 1);
+    u8 res = 0x00;
+    gyro_read(offset, &res, 1);
     return res;
 }
+
+static int gyro_inited = 0;
 
 extern "C" int handleCommand1(u8 param, u32 stage)
 {
     if(param <= 2)
         return readCPad(param);
-
+    
     // if(param == 4)
     // {
     //     return doScaleStuff();
     // }
 
-    if(param == 0xFF)
+    if(param == 0xFF && !gyro_inited)
     {
-        int result = mcu_init();
-        if(result)
-            return result;
+        int ret = gyro_init();
+        if(ret)
+            return ret;
         
-        return mcu_writeRegSafe(0x40, (const uint8_t[]){ 0x01 }, 1) ? 0x00 : 0xFE;
+        // unknown GPIO stuff
+        //*(vu32*)0x1EC47020 &= 0x40000;
+        //*(vu32*)0x1EC47024 = (*(vu32*)0x1EC47024 & ~4) | 0x40000;
+        
+        u8 val = 0;
+        
+        // reset
+        //if(gyro_setmask(0x6B, 0x80))
+            //return 0x10;
+        
+        //sleepnanos(10000000);
+        
+        // turn off sleep mode
+        if(gyro_clrmask(0x6B, 0x40))
+            return 0x11;
+        
+        sleepnanos(10000000);
+        
+        // gyro X PLL clocksource
+        if(gyro_mask(0x6B, 0x07, 0x01))
+            return 0x12;
+        
+        sleepnanos(10000000);
+        
+        // Low Pass Filter = ~42Hz
+        if(gyro_mask(0x1A, 0x07, 0x03))
+            return 0x13;
+        
+        sleepnanos(15000000);
+        
+        // Samplerate = 1kHz / (val + 1)
+        val = 4;
+        if(gyro_write(0x19, &val, 1))
+            return 0x14;
+        
+        sleepnanos(10000000);
+        
+        // ~250deg / s range, 0x10000 == 250deg of rotation
+        if(gyro_mask(0x1B, 0x18, 0x00))
+            return 0x15;
+        
+        sleepnanos(10000000);
+        
+        // 2g force, 0x10000 == 2g of force
+        if(gyro_mask(0x1C, 0x18, 0x00))
+            return 0x16;
+        
+        sleepnanos(10000000);
+        
+        // turn off sleep mode again (bug?)
+        if(gyro_clrmask(0x6B, 0x40))
+            return 0x19;
+        
+        sleepnanos(10000000);
+        
+        // sleep mode self-test
+        if(gyro_read(0x6B, &val, 1))
+            return 0x19 | 0x80;
+        
+        if(val & 0x40)
+            return 0x19 | 0x40;
+        
+        sleepnanos(10000000);
+        
+        gyro_inited = 1;
+        
+        return 0;
     }
 
-    if(param >= 3 && param <= 9)
-        return readGyro(param - 3);
+    if(param >= 3 && param <= 8)
+        // Read X Y Z as Little-Endian
+        return readGyro((((param - 3) ^ 1) + 0x43));
 
     return 0;
 }
