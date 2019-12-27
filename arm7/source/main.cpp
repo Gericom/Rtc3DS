@@ -82,6 +82,8 @@ int main()
 {
 	// clear sound registers
 	dmaFillWords(0, (void*)0x04000400, 0x100);
+    
+    *(vu8*)0x02FFFDFF = 0xB9;
 
 	REG_SOUNDCNT |= SOUND_ENABLE;
 	writePowerManagement(PM_CONTROL_REG, ( readPowerManagement(PM_CONTROL_REG) & ~PM_SOUND_MUTE ) | PM_SOUND_AMP );
@@ -110,21 +112,66 @@ int main()
 
 	int savedIrq = enterCriticalSection();
 	{
+        *(vu8*)0x02FFFDFF = 0xA5;
+        
 		rtcom_beginComm();
-		rtcom_requestAsync(1);
-		rtcom_waitStatus(RTCOM_STAT_DONE);
-		rtcom_uploadUCode(Rtc3DS_uc11, Rtc3DS_uc11_size);
-		rtcom_requestKill();
-		if(rtcom_executeUCode(0xFF)) //mcu init
-			*(u8*)0x02FFFE74 = rtcom_getData();
-		else
-			*(u8*)0x02FFFE74 = 0xFF;
-		rtcom_requestKill();
+        int trycount = 8;
+        
+        do
+        {
+            rtcom_requestAsync(1);
+            if(rtcom_waitStatus(RTCOM_STAT_DONE))
+                break;
+        }
+        while(--trycount);
+        
+        *(vu8*)0x02FFFDFF = 0x91;
+        
+        if(trycount)
+        {
+            trycount = 5;
+            do
+            {
+                if(rtcom_uploadUCode(Rtc3DS_uc11, Rtc3DS_uc11_size))
+                    break;
+            }
+            while(--trycount);
+            
+            *(vu8*)0x02FFFDFF = 0x92;
+            
+            if(trycount)
+            {
+                trycount = 6;
+                
+                do
+                {
+                    if(!rtcom_requestKill())
+                        continue;
+                    
+                    if(!rtcom_executeUCode(0xFF)) //mcu init
+                        continue;
+                    
+                    *(vu8*)0x02FFFDFF = rtcom_getData() ^ 0x40;
+                    
+                    break;
+                }
+                while(--trycount);
+                
+                if(!trycount)
+                    *(vu8*)0x02FFFDFF = 0x94;
+                
+                rtcom_requestKill();
+            }
+        }
+        
 		rtcom_requestAsync(RTCOM_STAT_DONE);
 		rtcom_endComm();
 	}
 	leaveCriticalSection(savedIrq);
-
+    
+    if(!*(vu8*)0x02FFFDFF)
+        *(vu8*)0x02FFFDFF = 0xAA;
+    
 	irqEnable( IRQ_VBLANK | IRQ_VCOUNT );//| IRQ_NETWORK);
 
 	setPowerButtonCB(powerButtonCB);

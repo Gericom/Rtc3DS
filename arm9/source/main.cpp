@@ -125,7 +125,7 @@ int main()
 		if (keysDown()&KEY_B)
 			printf("Button B\n");
         
-        printf("=[%02X]=\n\e[1A", *(vu8*)0x0CFFFE74);
+        printf("=[%02X]=\n\e[1A", *(vu8*)0x0CFFFDFF);
 	}
 
 	return 0;
