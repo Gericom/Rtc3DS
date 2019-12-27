@@ -1,5 +1,6 @@
 #include "a11ucode.h"
 #include "pat.h"
+#include "gyro.h"
 #include <stddef.h>
 
 #define RELOC_ADDR ((void*)0x100000)
@@ -31,8 +32,23 @@ int gyro_init()
         return 2;
     sWriteBuf8 = (i2cwritebuf8_t)(ptr | 1);
     
-    sIsInitialized = 1;
-    return 0;
+    u8 val;
+    
+    sIsInitialized = 2;
+    if(gyro_read(0x40, &val, 1))
+    {
+        sIsInitialized = 3;
+        if(gyro_read(0x40, &val, 1))
+        {
+            sIsInitialized = 1;
+            if(gyro_read(0x40, &val, 1))
+            {
+                sIsInitialized = 0x7F;
+            }
+        }
+    }
+    
+    return -sIsInitialized;
 }
 
 static int inc = 0;
@@ -42,24 +58,24 @@ int gyro_read(int reg, u8* dst, int count)
     if(!sReadBuf8 || !sIsInitialized)
     {
         *dst = ++inc;
-        return 0;
+        return 1;
     }
     
     u32 magic = 4;
     u32* deref = &magic;
     
-    return sReadBuf8(&deref, dst, 11, reg & 0xFF, count);
+    return sReadBuf8(&deref, dst, 8 + sIsInitialized, reg & 0xFF, count);
 }
 
 int gyro_write(int reg, const u8* dst, int count)
 {
     if(!sWriteBuf8 || !sIsInitialized)
-        return 0;
+        return 1;
     
     u32 magic = 4;
     u32* deref = &magic;
     
-    return sWriteBuf8(&deref, 11, reg & 0xFF, dst, count);
+    return sWriteBuf8(&deref, 8 + sIsInitialized, reg & 0xFF, dst, count);
 }
 
 int gyro_mask(int reg, u8 mask, u8 val)
